@@ -30,14 +30,20 @@ int main(void)
 
     // surfaces
     int anode = 5, cathode = 6, gnd = 7; // anode and cathode are on the upper layer
+    domainboundary
 
 
     // ################### Define physics #############################################################################
 
     std::cout << "Defining simulation" << std::endl;
 
-    // solution scalar field
-    field v("h1");                     // Nodal shape functions for the electric potential
+    spanningtree spantree({domainboundary});
+
+    // solution electric scalar potential field
+    field v("h1");
+
+    // solution magnetic vector potential field
+    a("hcurl", {2,3}, spantree);
 
     // Space dependent variables (scalar, tensors, etc)
     constexpr float epslon0 = -8.854e-12;
@@ -65,8 +71,11 @@ int main(void)
     expression E = -grad(v);
     expression J = sigma * E;
 
-    // Define physics formulation, which is a sum of integrals in weak form
+    // Define electric formulation, which is a sum of integrals in weak form
     formulation elec;
+
+    // Define the weak magnetodynamic formulation
+    formulation magdyn;
 
     float charge_density = 0; // [nC/m^3]
 

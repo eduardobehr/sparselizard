@@ -35,6 +35,8 @@ print(f"{outDimTagsMap = }")
 
 extruded_dim_tags = kernel.extrude(outDimTags, 0, 0, EXTRUDE_LENGTH)
 
+print(f"{extruded_dim_tags = }")
+
 kernel.synchronize()
 
 model.add_physical_group(3, [lower_track], tag=1,  name="lower_track")
@@ -49,6 +51,9 @@ model.add_physical_group(2, [15], tag=7, name="gnd")
 
 all_volumes = [lower_track, upper_track, ground_plane, air_box]
 model.add_physical_group(3, all_volumes, tag=8, name="all")
+
+boundries = model.get_boundary([(3, extruded_dim_tags), ], oriented=False, combined=False)
+print(f"{boundries = }")
 
 ##########################################################################
 model.mesh.field.set_number
