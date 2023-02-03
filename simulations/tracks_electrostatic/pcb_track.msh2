@@ -1,0 +1,20 @@
+$MeshFormat
+2.2 0 8
+$EndMeshFormat
+$PhysicalNames
+8
+2 5 "anode"
+2 6 "cathode"
+2 7 "gnd"
+3 1 "lower_track"
+3 2 "upper_track"
+3 3 "ground_plane"
+3 4 "air_box"
+3 8 "all"
+$EndPhysicalNames
+$Nodes
+0
+$EndNodes
+$Elements
+0
+$EndElements
