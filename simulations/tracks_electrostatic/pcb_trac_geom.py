@@ -1,7 +1,9 @@
 import gmsh, sys
+import numpy as np
 
 MAX_ELEMENT_SIZE    = .2
 GROUND_PLANE_WIDTH  = 10
+AIR_BOX_WIDTH = 1.1*GROUND_PLANE_WIDTH
 TRACKS_WIDTH        = 3
 AIR_BOX_HEIGHT      = 6
 EXTRUDE_LENGTH      = 3
@@ -19,7 +21,7 @@ kernel = gmsh.model.occ
 lower_track = kernel.add_rectangle(-TRACKS_WIDTH/2, 0, 0, TRACKS_WIDTH, 1)
 upper_track = kernel.add_rectangle(-TRACKS_WIDTH/2, 1.5, 0, TRACKS_WIDTH, 1)
 ground_plane = kernel.add_rectangle(-GROUND_PLANE_WIDTH/2, -1.5, 0, GROUND_PLANE_WIDTH, 1)
-air_box = kernel.add_rectangle(-GROUND_PLANE_WIDTH/2, -1.5, 0, GROUND_PLANE_WIDTH, AIR_BOX_HEIGHT)
+air_box = kernel.add_rectangle(-AIR_BOX_WIDTH/2, -2, 0, AIR_BOX_WIDTH, AIR_BOX_HEIGHT)
 
 print(f"Fragmenting {(lower_track, upper_track, ground_plane, air_box)}")
 outDimTags, outDimTagsMap = kernel.fragment(
@@ -34,8 +36,9 @@ print(f"{outDimTags = }")
 print(f"{outDimTagsMap = }")
 
 extruded_dim_tags = kernel.extrude(outDimTags, 0, 0, EXTRUDE_LENGTH)
-
 print(f"{extruded_dim_tags = }")
+
+# kernel.dilate([(3, air_box)], 1, 1, 1.1, 0, 0, EXTRUDE_LENGTH/2)
 
 kernel.synchronize()
 
@@ -52,8 +55,25 @@ model.add_physical_group(2, [15], tag=7, name="gnd")
 all_volumes = [lower_track, upper_track, ground_plane, air_box]
 model.add_physical_group(3, all_volumes, tag=8, name="all")
 
-boundries = model.get_boundary([(3, extruded_dim_tags), ], oriented=False, combined=False)
-print(f"{boundries = }")
+
+
+air_boundaries = kernel.get_surface_loops(air_box)[1][0]
+ground_boundaries = kernel.get_surface_loops(ground_plane)[1][0]
+lower_track_boundaries = kernel.get_surface_loops(lower_track)[1][0]
+upper_track_boundaries = kernel.get_surface_loops(upper_track)[1][0]
+
+domain_boundaries = [
+    surface for surface in air_boundaries 
+    if surface not in np.concatenate((
+        ground_boundaries,
+        lower_track_boundaries,
+        upper_track_boundaries
+    ))
+]
+
+
+print(f"{domain_boundaries = }")
+model.add_physical_group(2, domain_boundaries, name="Domain boundaries")
 
 ##########################################################################
 model.mesh.field.set_number

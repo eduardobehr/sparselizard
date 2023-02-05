@@ -6,14 +6,16 @@
 
 using namespace sl;
 namespace chrono = std::chrono;
-
+using std::cout, std::endl;
 
 int main(void)
 {
     // ################### Import Mesh Geometry #######################################################################
     
     gmsh::initialize();
-    gmsh::open("/home/eduardobehr/Documents/SparceLizard/Source_Code_Repo/sparselizard/simulations/tracks_electrostatic/pcb_track.msh");
+    auto filename = "simulations/tracks_electrostatic/pcb_track.msh";
+    cout << "Opening Mesh file '" << filename << "'" << endl;
+    gmsh::open(filename);
     // Load mesh available in GMSH API.
     // Set verbosity to 2 to print the physical regions info.
     mesh mymesh("gmsh:api", 2);
@@ -27,34 +29,36 @@ int main(void)
     // TODO: use selected unions!
     // int conductors = selectunion({lower_track, upper_track, ground_plane});
     // int insulators = selectunion({air_box});
+    int whole_domain = selectall();
 
     // surfaces
     int anode = 5, cathode = 6, gnd = 7; // anode and cathode are on the upper layer
-    domainboundary
+    int domain_boundary = 9; // FIXME: missing some surfaces!
 
 
     // ################### Define physics #############################################################################
 
     std::cout << "Defining simulation" << std::endl;
 
-    spanningtree spantree({domainboundary});
+    spanningtree spantree({domain_boundary});
 
     // solution electric scalar potential field
     field v("h1");
 
     // solution magnetic vector potential field
-    a("hcurl", {2,3}, spantree);
+    field a("hcurl", spantree);
 
     // Space dependent variables (scalar, tensors, etc)
-    constexpr float epslon0 = -8.854e-12;
+    constexpr float epsilon0 = -8.854e-12;
     constexpr float copper_conductivity = 58 * 1e6;
-    parameter sigma, epslon;
+    parameter sigma, epsilon, mu;
 
     sigma | upper_track = copper_conductivity;
     sigma | lower_track = copper_conductivity;
     sigma | ground_plane = copper_conductivity;
     sigma | air_box = 0;
-    epslon | air_box = epslon0;
+    epsilon | air_box = epsilon0;
+    mu | whole_domain = 4*getpi()*1e-7;
 
     // Volumes: Interpolation order 2 on the whole domain
     v.setorder(lower_track, 2);
@@ -62,10 +66,15 @@ int main(void)
     v.setorder(ground_plane, 2);
     v.setorder(air_box, 2);
 
+    a.setorder(whole_domain, 0);
+
     // Dirichlet boundary conditions on surfaces for the solution field
     v.setconstraint(anode, 1);
     v.setconstraint(cathode, 0);
     v.setconstraint(gnd, 0);
+
+    a.setconstraint(domain_boundary, 0);
+    a.setgauge(whole_domain);
 
 
     expression E = -grad(v);
@@ -75,21 +84,28 @@ int main(void)
     formulation elec;
 
     // Define the weak magnetodynamic formulation
-    formulation magdyn;
+    // formulation magdyn;
 
     float charge_density = 0; // [nC/m^3]
 
     // Electric potential on isolators (air)
     elec += integral(
         air_box, 
-        epslon * grad(dof(v)) * grad(tf(v)) + charge_density * tf(v)
+        epsilon * grad(dof(v)) * grad(tf(v)) + charge_density * tf(v)
     );
 
     // Electric current on conductors
     elec += integral(
         all, 
-        grad(tf(v)) * sigma * grad(dof(v))
+        grad(tf(v)) * sigma * grad(dof(v)) + sigma*dt(dof(a))*grad(tf(v))
     );
+
+    elec += integral(whole_domain, 1/mu* curl(dof(a)) * curl(tf(a)) );
+    elec += integral(whole_domain, sigma*dt(dof(a))*tf(a) + sigma* grad(dof(v))*tf(a) );
+    // Electric equation:
+
+
+
 
     // ################### Solve Matrices #############################################################################
     std::cout << "Solving...  " << std::flush;
