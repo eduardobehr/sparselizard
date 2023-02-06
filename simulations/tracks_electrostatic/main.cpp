@@ -73,7 +73,7 @@ int main(void)
     v.setconstraint(cathode, 0);
     v.setconstraint(gnd, 0);
 
-    a.setconstraint(domain_boundary, 0);
+    a.setconstraint(domain_boundary);
     a.setgauge(whole_domain);
 
 
@@ -97,11 +97,11 @@ int main(void)
     // Electric current on conductors
     elec += integral(
         all, 
-        grad(tf(v)) * sigma * grad(dof(v)) + sigma*dt(dof(a))*grad(tf(v))
+        grad(tf(v)) * sigma * grad(dof(v)) //+ sigma*dt(dof(a))*grad(tf(v))
     );
 
     elec += integral(whole_domain, 1/mu* curl(dof(a)) * curl(tf(a)) );
-    elec += integral(whole_domain, sigma*dt(dof(a))*tf(a) + sigma* grad(dof(v))*tf(a) );
+    // elec += integral(whole_domain, sigma*dt(dof(a))*tf(a) + sigma* grad(dof(v))*tf(a) );
     // Electric equation:
 
 
@@ -115,11 +115,15 @@ int main(void)
     auto end = chrono::high_resolution_clock::now();
     std::cout << "Done! (" << chrono::duration_cast<chrono::seconds>(end - start).count() << " seconds)\n";
 
+    // ################### Post calculations ##########################################################################
+    auto B = curl(a);
+
     // ################### Output Solutions ###########################################################################
     std::cout << "Wrting results" << std::endl;
 
     v.write(all, "V.pos", 2);
     E.write(all, "E.pos", 2);
     J.write(all, "J.pos", 2);
+    B.write(all, "B.pos", 2);
 }
 
